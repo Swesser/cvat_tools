@@ -45,5 +45,33 @@ project: a `rectangle` under the source name and a `skeleton` named `<name>_skel
 sublabels, colours and edges come from `keypoint_info` and `keypoint_connections`. A keypoint
 missing from a group is uploaded as an element marked `outside`; `export-figures` drops it again.
 
+## The trash tag
+
+Besides the classes of `meta.json`, every project gets an image-level tag named `trash`, so an
+annotator can mark a frame that should not be used. `export-figures` writes the mark as a
+`"trash"` flag on the frame:
+
+```json
+{
+    "img_name.jpg": {
+        "trash": false,
+        "bboxes": [],
+        "kgroups": [],
+        "height": 1080,
+        "width": 1920
+    }
+}
+```
+
+Every frame of the job is written, tagged or not: the flag says what the annotator decided, and
+the consumer of the file decides what to do with it. The tag is matched by name rather than by
+id, so a project that was created before the tag existed, and numbers its labels differently,
+still reads correctly.
+
+The flag only ever travels outwards. A task arrives from a detector, which has no notion of a
+frame being unusable, so the `figures.json` of a source task carries no `"trash"` key and
+`import` has none to read: the mark is made by an annotator in CVAT and leaves through
+`export-figures`.
+
 The server certificate is not verified: the package carries no CA file.
 # cvat_tools

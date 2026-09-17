@@ -40,6 +40,10 @@ CSS_COLORS = {
 SKELETON_SUFFIX = "_skeleton"
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".bmp")
 
+# An image-level tag carried by every task, so an annotator can mark a frame unusable. The
+# export keeps such a frame and flips its "trash" flag rather than dropping the entry.
+TRASH_LABEL = "trash"
+
 # The skeleton svg lives in a 100x100 viewport; keep the nodes off the edges.
 VIEWPORT_MIN = 10.0
 VIEWPORT_MAX = 90.0
@@ -129,6 +133,17 @@ def build_labels(meta: dict) -> list:
             )
         else:
             sys.exit(f"unsupported label type {entry['type']!r} in meta.json")
+
+    # meta.json describes the classes to draw; the trash tag is ours and belongs to every task.
+    if not any(label["name"] == TRASH_LABEL for label in labels):
+        labels.append(
+            {
+                "name": TRASH_LABEL,
+                "type": "tag",
+                "color": color("gray"),
+                "attributes": [],
+            }
+        )
     return labels
 
 
@@ -243,16 +258,28 @@ def read_task(source: Path) -> tuple[list, dict, list, dict]:
     return labels, annotations, images, counts
 
 
-def figures_from_shapes(frames: dict, shapes: list, names: dict, sublabels: dict, counts) -> dict:
-    """Turn the shapes of one job into the figures.json entry of every frame it covers."""
+def figures_from_shapes(
+    frames: dict,
+    shapes: list,
+    names: dict,
+    sublabels: dict,
+    counts,
+    trash: set = frozenset(),
+) -> dict:
+    """Turn the shapes of one job into the figures.json entry of every frame it covers.
+
+    A frame tagged as trash stays in the output with its shapes; only its flag is set, so the
+    caller decides what to do with it.
+    """
     figures = {
         frame["name"]: {
+            "trash": number in trash,
             "bboxes": [],
             "kgroups": [],
             "height": frame["height"],
             "width": frame["width"],
         }
-        for frame in frames.values()
+        for number, frame in frames.items()
     }
 
     for shape in shapes:

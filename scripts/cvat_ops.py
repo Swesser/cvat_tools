@@ -18,7 +18,7 @@ from cvat_sdk import Client, Config
 from cvat_sdk.api_client import models
 from cvat_sdk.core.proxies.tasks import ResourceType
 
-from figures import figures_from_shapes, read_task
+from figures import TRASH_LABEL, figures_from_shapes, read_task
 
 
 def build_client(args: argparse.Namespace) -> Client:
@@ -167,9 +167,14 @@ def job_figures(client: Client, job, counts: Counter) -> dict:
         for number, frame in zip(numbers, meta.frames)
     }
 
+    # Matched by name rather than by id: a project created before the tag existed carries it
+    # under an id of its own, and every project numbers its labels separately.
+    trash = {tag.frame for tag in annotations.tags if names.get(tag.label_id) == TRASH_LABEL}
+
     counts["tracks"] += len(annotations.tracks)
-    counts["tags"] += len(annotations.tags)
-    return figures_from_shapes(frames, annotations.shapes, names, sublabels, counts)
+    counts["tags"] += len(annotations.tags) - len(trash)
+    counts["trash frames"] += len(trash)
+    return figures_from_shapes(frames, annotations.shapes, names, sublabels, counts, trash)
 
 
 def cmd_import(client: Client, args: argparse.Namespace) -> None:
